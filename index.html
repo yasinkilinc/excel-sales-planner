@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Plan Calculator</title>
+<meta name="description" content="An Excel sales-planning workbook turned into a browser app. Every result is tested against the original spreadsheet.">
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #16202a; --muted: #5d6b7a; --line: #e2e6eb;
+    --accent: #1f7a4d; --accent-soft: #e3f2ea; --bar: #2f9a66; --error: #b42318;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1418; --card: #172027; --text: #e6edf3; --muted: #9aa8b5; --line: #26323c;
+      --accent: #46c08a; --accent-soft: #173326; --bar: #3fae7a; --error: #ff8a80;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header, main, footer { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+  header { padding-top: 28px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0; }
+  .badge { display: inline-block; margin-top: 10px; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 20px; margin-top: 20px; align-items: start; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  main > * { min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  label { display: grid; grid-template-columns: 1fr 120px; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 14px; }
+  input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; text-align: right; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .weights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .weights label { grid-template-columns: 1fr; gap: 2px; margin: 0; font-size: 12px; color: var(--muted); }
+  .errors { color: var(--error); font-size: 14px; margin: 0 0 12px; padding-left: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .kpi b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--muted); font-size: 13px; }
+  .rates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0 20px; }
+  @media (max-width: 560px) { .rates { grid-template-columns: 1fr; } }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  tfoot td { font-weight: 700; border-bottom: none; }
+  @media (max-width: 560px) { .barcol { display: none; } }
+  .bar { height: 8px; border-radius: 4px; background: var(--bar); min-width: 2px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); background: transparent; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .btn.primary { background: var(--accent); color: var(--card); }
+  footer { color: var(--muted); font-size: 13px; padding-top: 24px; padding-bottom: 32px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sales Plan Calculator</h1>
+  <p class="sub">An Excel planning workbook rebuilt as a fast browser app. Change any input and every number updates instantly.</p>
+  <span class="badge">Verified: 26,535 cell results match the original workbook</span>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Inputs</h2>
+    <ul class="errors" id="errors" hidden></ul>
+    <form id="form" autocomplete="off">
+      <label>Annual income goal ($) <input name="goal" type="number" min="0" step="500"></label>
+      <label>Commission per sale ($) <input name="commission" type="number" min="0" step="5"></label>
+      <label>Lead → appointment (%) <input name="leadToAppointment" data-pct type="number" min="0" max="100" step="1"></label>
+      <label>Appointment show rate (%) <input name="showRate" data-pct type="number" min="0" max="100" step="1"></label>
+      <label>Close rate (%) <input name="closeRate" data-pct type="number" min="0" max="100" step="1"></label>
+      <label>Working weeks per year <input name="weeks" type="number" min="1" max="52" step="1"></label>
+      <label>Working days per week <input name="daysPerWeek" type="number" min="1" max="7" step="1"></label>
+      <h2 style="margin-top:18px">Seasonality weights</h2>
+      <div class="weights" id="weights"></div>
+    </form>
+    <div class="actions">
+      <button class="btn" id="reset" type="button">Reset to workbook</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="kpis">
+      <div class="kpi"><b id="sales">–</b><span>sales needed</span></div>
+      <div class="kpi"><b id="held">–</b><span>appointments held</span></div>
+      <div class="kpi"><b id="booked">–</b><span>appointments booked</span></div>
+      <div class="kpi"><b id="leads">–</b><span>leads needed</span></div>
+    </div>
+    <div class="rates">
+      <div class="kpi"><b id="salesPerWeek">–</b><span>sales per week</span></div>
+      <div class="kpi"><b id="leadsPerWeek">–</b><span>leads per week</span></div>
+      <div class="kpi"><b id="leadsPerDay">–</b><span>leads per working day</span></div>
+    </div>
+    <div class="card">
+      <h2>Monthly plan</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Month</th><th>Share</th><th class="barcol"></th><th>Income target</th><th>Sales</th><th>Appointments</th><th>Leads</th></tr></thead>
+          <tbody id="months"></tbody>
+          <tfoot id="totals"></tfoot>
+        </table>
+      </div>
+      <p class="sub" id="income" style="margin-top:12px"></p>
+      <div class="actions">
+        <button class="btn primary" id="csv" type="button">Export CSV</button>
+        <a class="btn" href="sales-planner.xlsx" download>Download the original workbook</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Spreadsheet-to-web demo by <a href="https://www.upwork.com/freelancers/~01430a7bd73baa8d60">Yasin K.</a>.
+  Runs entirely in your browser; nothing you type is sent anywhere.
+  <a href="https://github.com/yasinkilinc/excel-sales-planner">Source &amp; tests</a>
+</footer>
+
+<script type="module">
+  import { DEFAULTS, MONTHS, plan, validate } from "./calc.js";
+
+  const form = document.getElementById("form");
+  const weightsBox = document.getElementById("weights");
+  const fmt = (n, d = 0) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const money = (n) => "$" + fmt(n, 2);
+
+  MONTHS.forEach((m, i) => {
+    weightsBox.insertAdjacentHTML("beforeend", `<label>${m}<input name="wt-${i}" type="number" min="0" step="0.1"></label>`);
+  });
+
+  function load(values) {
+    for (const el of form.elements) {
+      if (el.name.startsWith("wt-")) el.value = values.weights[Number(el.name.slice(3))];
+      else if (el.name) el.value = el.dataset.pct !== undefined ? +(values[el.name] * 100).toFixed(4) : values[el.name];
+    }
+  }
+
+  function read() {
+    const v = { weights: [] };
+    for (const el of form.elements) {
+      if (!el.name) continue;
+      const n = el.value === "" ? NaN : Number(el.value);
+      if (el.name.startsWith("wt-")) v.weights[Number(el.name.slice(3))] = n;
+      else v[el.name] = el.dataset.pct !== undefined ? n / 100 : n;
+    }
+    return v;
+  }
+
+  let last = null;
+  function render() {
+    const inputs = read();
+    const errors = validate(inputs);
+    const box = document.getElementById("errors");
+    box.hidden = errors.length === 0;
+    box.innerHTML = errors.map((e) => `<li>${e}</li>`).join("");
+    if (errors.length) return;
+
+    const p = (last = plan(inputs));
+    const s = p.summary;
+    for (const k of ["sales", "held", "booked", "leads"]) document.getElementById(k).textContent = fmt(s[k]);
+    for (const k of ["salesPerWeek", "leadsPerWeek", "leadsPerDay"]) document.getElementById(k).textContent = fmt(s[k], 1);
+
+    const maxShare = Math.max(...p.months.map((m) => m.share));
+    document.getElementById("months").innerHTML = p.months
+      .map((m) => `<tr><td>${m.month}</td><td>${fmt(m.share * 100, 1)}%</td>
+        <td class="barcol" style="width:22%"><div class="bar" style="width:${(m.share / maxShare) * 100}%"></div></td>
+        <td>${money(m.income)}</td><td>${fmt(m.sales, 1)}</td><td>${fmt(m.held, 1)}</td><td>${fmt(m.leads, 1)}</td></tr>`)
+      .join("");
+    const t = p.totals;
+    document.getElementById("totals").innerHTML =
+      `<tr><td>Total</td><td>${fmt(t.share * 100, 1)}%</td><td class="barcol"></td><td>${money(t.income)}</td><td>${fmt(t.sales, 1)}</td><td>${fmt(t.held, 1)}</td><td>${fmt(t.leads, 1)}</td></tr>`;
+    document.getElementById("income").textContent =
+      `${fmt(s.sales)} sales × ${money(inputs.commission)} = ${money(s.income)} projected income (${money(s.surplus)} above goal).`;
+  }
+
+  document.getElementById("csv").addEventListener("click", () => {
+    if (!last) return;
+    const rows = [["Month", "Share", "Income target", "Sales", "Appointments", "Leads"]];
+    for (const m of last.months) rows.push([m.month, m.share, m.income, m.sales, m.held, m.leads]);
+    const t = last.totals;
+    rows.push(["Total", t.share, t.income, t.sales, t.held, t.leads]);
+    const blob = new Blob([rows.map((r) => r.join(",")).join("\n")], { type: "text/csv" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "sales-plan.csv" });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById("reset").addEventListener("click", () => { load(DEFAULTS); render(); });
+  form.addEventListener("input", render);
+  load(DEFAULTS);
+  render();
+</script>
+</body>
+</html>

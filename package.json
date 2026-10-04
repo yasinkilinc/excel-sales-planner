@@ -1,0 +1,15 @@
+{
+  "name": "excel-sales-planner",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "node build-workbook.mjs",
+    "test": "node --test"
+  },
+  "type": "module",
+  "devDependencies": {
+    "exceljs": "^4.4.0",
+    "hyperformula": "^3.4.0"
+  }
+}
